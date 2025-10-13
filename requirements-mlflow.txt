@@ -1,0 +1,20 @@
+# Modern MLflow stack
+mlflow==3.4.0
+
+# Serving + API
+fastapi==0.115.0
+uvicorn==0.30.6
+
+# ML / data science
+scikit-learn==1.5.2
+pandas==2.2.2
+numpy==2.1.1
+matplotlib==3.9.2
+joblib==1.4.2
+
+# Dependency sync for new MLflow deps
+typing-extensions>=4.14.1
+anyio>=4.7.0
+httpx>=0.28.1
+rich>=13.9.4
+cryptography>=43,<46

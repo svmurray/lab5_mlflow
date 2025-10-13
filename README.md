@@ -1,2 +1,3 @@
-# lab5_mlflow
-ML Flow + Airflow for model management
+# One-Box MLOps — SMS Spam (Train → Register → Promote → Serve)
+
+See in-class instructions.

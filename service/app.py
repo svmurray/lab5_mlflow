@@ -10,6 +10,13 @@ from mlflow.exceptions import MlflowException
 MODEL_NAME = os.getenv("MODEL_NAME", "SpamClassifier")
 TRACKING   = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 
+from pathlib import Path
+REPO_DIR = Path(__file__).resolve().parents[1]
+ABS_DB = f"sqlite:////{REPO_DIR / 'mlflow.db'}"
+os.environ.setdefault("MLFLOW_TRACKING_URI", ABS_DB)
+os.environ.setdefault("MLFLOW_REGISTRY_URI", ABS_DB)
+mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
+
 # ---- App state ----
 app = FastAPI(title="SpamClassifier API")
 _model = None

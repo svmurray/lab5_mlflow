@@ -5,17 +5,22 @@ PY := python3.11
 APP_VENV := app_venv
 AF_VENV  := airflow_venv
 
-APP_PY := $(APP_VENV)/bin/python
+APP_PY  := $(APP_VENV)/bin/python
 APP_PIP := $(APP_VENV)/bin/pip
+AF_PY   := $(AF_VENV)/bin/python
+AF_PIP  := $(AF_VENV)/bin/pip
+AF_BIN  := $(AF_VENV)/bin/airflow
 
-AF_PY := $(AF_VENV)/bin/python
-AF_PIP := $(AF_VENV)/bin/pip
-AF_BIN := $(AF_VENV)/bin/airflow
+# -------- Paths --------
+ABS_DB := sqlite:////$(shell pwd)/mlflow.db
+ABS_AR := file://$(shell pwd)/mlruns
 
 # -------- Airflow env (point UI/scheduler at your repo) --------
 AF_ENV = AIRFLOW_HOME=$$(pwd)/.airflow \
          AIRFLOW__CORE__DAGS_FOLDER=$$(pwd)/dags \
-         PYTHONPATH=$$(pwd)
+         AIRFLOW__WEBSERVER__WEB_SERVER_HOST=0.0.0.0 \
+         PYTHONPATH=$$(pwd) \
+         PATH=$$(pwd)/airflow_venv/bin:$$PATH
 
 # ===== Bootstrap targets =====
 bootstrap-mlflow:
@@ -30,33 +35,38 @@ bootstrap-airflow:
 	$(AF_PY) -m pip install --upgrade pip wheel
 	$(AF_PIP) install -r requirements-airflow.txt
 
+# (Optional) OS deps on RHEL/Amazon Linux; run this once manually if needed
+install-os-deps:
+	sudo dnf -y install python3.11 python3.11-devel gcc
+
 bootstrap: bootstrap-mlflow bootstrap-airflow
 
-# ===== MLflow UI (no gunicorn) =====
+# ===== MLflow UI =====
 mlflow-ui:
-	MLFLOW_TRACKING_URI=sqlite:///mlflow.db \
-	MLFLOW_REGISTRY_URI=sqlite:///mlflow.db \
+	MLFLOW_TRACKING_URI=$(ABS_DB) \
+	MLFLOW_REGISTRY_URI=$(ABS_DB) \
 	$(APP_PY) -m mlflow ui \
-		--backend-store-uri sqlite:///mlflow.db \
-		--default-artifact-root ./mlruns \
-		--host 127.0.0.1 --port 5001
+	  --backend-store-uri $(ABS_DB) \
+	  --default-artifact-root ./mlruns \
+	  --host 0.0.0.0 --port 5001
 
-# ===== FastAPI =====
+# ===== FastAPI (optional) =====
 api:
 	$(APP_PY) -m uvicorn service.app:app --host 0.0.0.0 --port 8000 --reload
 
-# ===== Airflow (uses airflow_venv) =====
+AF_BIN := $(AF_VENV)/bin/airflow
+
 airflow-init:
-	$(AF_ENV) $(AF_PY) -m airflow db init && \
-	$(AF_ENV) $(AF_PY) -m airflow users create \
+	$(AF_ENV) $(AF_BIN) db init && \
+	$(AF_ENV) $(AF_BIN) users create \
 	  --username admin --firstname admin --lastname user \
 	  --role Admin --email admin@example.com --password admin || true
 
 airflow-webserver:
-	$(AF_ENV) $(AF_PY) -m airflow webserver --port 8081
+	$(AF_ENV) $(AF_BIN) webserver --port 8081
 
 airflow-scheduler:
-	$(AF_ENV) $(AF_PY) -m airflow scheduler
+	$(AF_ENV) $(AF_BIN) scheduler
 
 # ===== Debug helpers =====
 airflow-list:
@@ -72,9 +82,7 @@ airflow-setvars:
 	$(AF_ENV) $(AF_PY) -m airflow variables set APP_PY "$$(pwd)/app_venv/bin/python"
 	$(AF_ENV) $(AF_PY) -m airflow variables set REPO_DIR "$$(pwd)"
 	$(AF_ENV) $(AF_PY) -m airflow variables set ART_DIR  "$$(pwd)/.airflow/artifacts"
-	# ABSOLUTE tracking DB (note FOUR slashes for sqlite absolute path)
-	$(AF_ENV) $(AF_PY) -m airflow variables set MLFLOW_TRACKING_URI "sqlite:////$$(pwd)/mlflow.db"
-	$(AF_ENV) $(AF_PY) -m airflow variables set MLFLOW_REGISTRY_URI "sqlite:////$$(pwd)/mlflow.db"
-	# Explicit artifact root (repo-local mlruns)
-	$(AF_ENV) $(AF_PY) -m airflow variables set MLFLOW_ARTIFACT_URI "file://$$(pwd)/mlruns"
-	$(AF_ENV) $(AF_PY) -m airflow variables set SERVICE_RELOAD_URL "http://127.0.0.1:8000/reload"
+	$(AF_ENV) $(AF_PY) -m airflow variables set MLFLOW_TRACKING_URI "$(ABS_DB)"
+	$(AF_ENV) $(AF_PY) -m airflow variables set MLFLOW_REGISTRY_URI "$(ABS_DB)"
+	$(AF_ENV) $(AF_PY) -m airflow variables set MLFLOW_ARTIFACT_URI "$(ABS_AR)"
+	$(AF_ENV) $(AF_PY) -m airflow variables set SERVICE_RELOAD_URL "http://0.0.0.0:8000/reload"

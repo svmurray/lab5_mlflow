@@ -6,6 +6,13 @@ You will:
 2. Track and register models in **MLflow**  
 3. Serve predictions through a **FastAPI** endpoint
 
+### NOTE Localhost will be replaced by your server IP address.  
+To get ipaddress
+```bash
+curl ifconfig.me
+```
+
+
 ---
 
 ## 🧱 1. Ensure python3.11 is default

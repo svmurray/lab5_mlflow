@@ -1,9 +1,0 @@
-{
-    "type": "text",
-    "name": "message",
-    "preprocess": {
-        "lowercase": true,
-        "strip_urls": true,
-        "strip_numbers": false
-    }
-}

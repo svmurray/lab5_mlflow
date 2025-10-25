@@ -51,6 +51,20 @@ class PredictResponse(BaseModel):
             ]
         }
     }
+    
+class VersionRequest(BaseModel):
+    version: str
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [ {"version": "1"}
+            ]
+        }
+    }
+    
+class VersionResponse(BaseModel):
+    version: str #Model version cast as string to protect against non-int types
+    status: str  #status message regarding the Model version
 
 app = FastAPI(
     title="Iris Classifier API",
@@ -62,6 +76,40 @@ app = FastAPI(
 def health():
     return {"status": "ok", "model_uri": MODEL_URI}
 
+@app.get(
+    "/version", 
+    response_model=VersionResponse,
+    tags=["model"],
+    summary = 'Retrieve current model version',
+    description = 'Returns the current version of the model being served.')
+def version():
+    print(MODEL_VERSION)
+    return VersionResponse(
+        version=MODEL_VERSION,
+        status='Currently being served')
+    
+@app.post(
+    "/set_version", 
+    response_model=VersionResponse,
+    tags=["model"],
+    summary = 'Set current model version',
+    description = 'Attempts to set the Model Version to the input parameter.')
+def set_version(req: VersionRequest) -> VersionRequest:
+    status_string = 'Attempted to set'
+    try:
+        global MODEL_VERSION
+        global MODEL_URI
+        global model
+        MODEL_VERSION = req.version
+        MODEL_URI = f"models:/{MODEL_NAME}/{MODEL_VERSION}"
+        model = mlflow.pyfunc.load_model(MODEL_URI)
+        status_string = 'Model Version successfully updated.'
+    except Exception as e:
+        status_string = 'Failed to set Model Version. Please ensure that it exists.'
+    return VersionResponse(
+        version=MODEL_VERSION,
+        status=status_string)
+
 @app.post(
     "/predict",
     response_model=PredictResponse,
@@ -70,10 +118,15 @@ def health():
     description="Send one or more Iris samples; returns class id (0,1,2) and label (setosa, versicolor, virginica)."
 )
 def predict(req: PredictRequest) -> PredictResponse:
-    # TODO Run predict
+    ids = []
+    labels = []
+    for s in req.samples:
+        res = model.predict([[item[1] for item in s]])
+        ids += [res[0]]
+        labels += [IRIS_LABELS[res[0]]]
     return PredictResponse(
-        class_id=[],
-        class_label=[]
+        class_id=ids,
+        class_label=labels
     )
     
 # TODO Add endpoint to get the current model serving version

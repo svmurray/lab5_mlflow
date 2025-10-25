@@ -96,15 +96,17 @@ def version():
 def set_version(req: VersionRequest) -> VersionRequest:
     status_string = 'Attempted to set'
     try:
+        global MODEL_VERSION
+        global MODEL_URI
+        global model
         model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/{req.version}")
         MODEL_URI = f"models:/{MODEL_NAME}/{req.version}"
         MODEL_VERSION = req.version
         status_string = 'Model Version successfully updated.'
     except Exception as e:
-        print(e)
         status_string = 'Failed to set Model Version. Please ensure that it exists.'
     return VersionResponse(
-        version=MODEL_VERSION,
+        version=req.version,
         status=status_string)
 
 @app.post(

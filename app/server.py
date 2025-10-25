@@ -83,7 +83,6 @@ def health():
     summary = 'Retrieve current model version',
     description = 'Returns the current version of the model being served.')
 def version():
-    print(MODEL_VERSION)
     return VersionResponse(
         version=MODEL_VERSION,
         status='Currently being served')
@@ -97,14 +96,12 @@ def version():
 def set_version(req: VersionRequest) -> VersionRequest:
     status_string = 'Attempted to set'
     try:
-        global MODEL_VERSION
-        global MODEL_URI
-        global model
+        model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/{req.version}")
+        MODEL_URI = f"models:/{MODEL_NAME}/{req.version}"
         MODEL_VERSION = req.version
-        MODEL_URI = f"models:/{MODEL_NAME}/{MODEL_VERSION}"
-        model = mlflow.pyfunc.load_model(MODEL_URI)
         status_string = 'Model Version successfully updated.'
     except Exception as e:
+        print(e)
         status_string = 'Failed to set Model Version. Please ensure that it exists.'
     return VersionResponse(
         version=MODEL_VERSION,
